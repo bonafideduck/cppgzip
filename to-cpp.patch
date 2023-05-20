@@ -1,0 +1,67 @@
+diff --git a/Makefile.am b/Makefile.am
+index 4f51b61..d1f382f 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -28,8 +28,8 @@ AM_CFLAGS = $(WARN_CFLAGS) $(WERROR_CFLAGS)
+ AM_LDFLAGS = $(IGNORE_UNUSED_LIBRARIES_CFLAGS)
+ 
+ noinst_LIBRARIES = libver.a
+-nodist_libver_a_SOURCES = version.c version.h
+-DISTCLEANFILES = version.c version.h
++nodist_libver_a_SOURCES = version.cpp version.h
++DISTCLEANFILES = version.cpp version.h
+ 
+ if LESS
+ ZLESS_MAN = zless.1
+@@ -59,16 +59,16 @@ bin_PROGRAMS = gzip
+ bin_SCRIPTS = gunzip gzexe zcat zcmp zdiff \
+   zegrep zfgrep zforce zgrep $(ZLESS_PROG) zmore znew
+ gzip_SOURCES = \
+-  bits.c deflate.c gzip.c inflate.c \
+-  trees.c unlzh.c unlzw.c unpack.c unzip.c util.c zip.c
++  bits.cpp deflate.cpp gzip.cpp inflate.cpp \
++  trees.cpp unlzh.cpp unlzw.cpp unpack.cpp unzip.cpp util.cpp zip.cpp
+ gzip_LDADD = libver.a lib/libgzip.a
+ gzip_LDADD += $(LIB_CLOCK_GETTIME)
+ if IBM_Z_DFLTCC
+-gzip_SOURCES += dfltcc.c
++gzip_SOURCES += dfltcc.cpp
+ endif
+ 
+-BUILT_SOURCES += version.c
+-version.c: Makefile
++BUILT_SOURCES += version.cpp
++version.cpp: Makefile
+ 	$(AM_V_GEN)rm -f $@
+ 	$(AM_V_at)printf '#include <config.h>\n' > $@t
+ 	$(AM_V_at)printf 'char const *Version = "$(PACKAGE_VERSION)";\n' >> $@t
+@@ -123,7 +123,7 @@ new_path = PATH=.$(PATH_SEPARATOR)$$PATH
+ 
+ # A simple test, just of gzip -- more of a sanity check than anything else.
+ FILES_TO_CHECK = $(bin_SCRIPTS) \
+-  $(top_srcdir)/ChangeLog $(top_srcdir)/configure $(top_srcdir)/gzip.c
++  $(top_srcdir)/ChangeLog $(top_srcdir)/configure $(top_srcdir)/gzip.cpp
+ check-local: $(FILES_TO_CHECK) $(bin_PROGRAMS) gzip.doc.gz
+ 	$(AM_V_GEN)$(new_path); { test '$(srcdir)' != . \
+ 				    || zdiff gzip.doc.gz; }
+diff --git a/configure.ac b/configure.ac
+index 402fc45..4ff2fbf 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -24,7 +24,7 @@ AC_INIT([gzip],
+         m4_esyscmd([build-aux/git-version-gen .tarball-version]),
+         [bug-gzip@gnu.org])
+ 
+-AC_CONFIG_SRCDIR([gzip.c])
++AC_CONFIG_SRCDIR([gzip.cpp])
+ AC_CONFIG_AUX_DIR([build-aux])
+ AC_CONFIG_MACRO_DIR([m4])
+ AC_CONFIG_HEADERS([lib/config.h:lib/config.hin])
+@@ -49,6 +49,7 @@ gl_ASSERT_NO_GNULIB_POSIXCHECK])
+ AC_PROG_CC
+ AM_PROG_CC_C_O
+ AC_PROG_CPP
++AC_PROG_CXX
+ AC_PROG_GREP
+ AC_CHECK_PROG([LESS], [less], [less])
+ AM_CONDITIONAL([LESS], [test "$LESS"])

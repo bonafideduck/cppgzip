@@ -1,0 +1,49 @@
+#!/bin/sh
+
+fail() {
+  echo ERROR: "$*" >&2
+  exit 1
+}
+
+if [ ! -d c ] ; then
+  echo Creating c/gzip &&
+  set -e
+  set -x
+  test -f gzip-1.12.tar.gz || curl -O https://ftp.gnu.org/gnu/gzip/gzip-1.12.tar.gz
+  tar xzf gzip-1.12.tar.gz
+  mv gzip-1.12 c
+  cd c
+  ./configure
+  make
+  cd ..
+  set +x
+  set +e
+fi
+
+if [ ! -d cpp ] ; then
+  echo Creating cpp/gzip
+  set -e
+  set -x
+  git clone git://git.sv.gnu.org/gzip cpp
+  cd cpp
+  git switch -c v1.12 v1.12
+  git mv bits.c bits.cpp
+  git mv deflate.c deflate.cpp
+  git mv dfltcc.c dfltcc.cpp
+  git mv gzip.c gzip.cpp
+  git mv inflate.c inflate.cpp
+  git mv trees.c trees.cpp
+  git mv unlzh.c unlzh.cpp
+  git mv unlzw.c unlzw.cpp
+  git mv unpack.c unpack.cpp
+  git mv unzip.c unzip.cpp
+  git mv util.c util.cpp
+  git mv zip.c zip.cpp
+  git apply ../to-cpp.patch
+  ./bootstrap
+  ./configure
+  make
+  cd ..
+  set +x
+  set +e
+fi
