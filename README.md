@@ -29,3 +29,30 @@ and then modified to be c++.
 
 I haven't gotten to that, but it will probably be simply a call
 to "make test" timed several times.
+
+## Conversion Notes
+
+These were the changes needed to get the existing code compiling with c++.
+
+1. Remove `register` statements.
+2. Change function prototype from like this:
+    ```
+    void fu(i) 
+      int i;
+    {
+        ...
+    }
+    ```
+    to this:
+    ```
+    void fu(
+        int i
+    ) {
+        ...
+    }
+    ```
+    I did not investigate to see if there was a compiler flag to also allow this.
+3. Add a space before the `O` in `"option not valid in "OPTIONS_VAR`.
+4. Add various `extern "C" {...}` wrappers.
+5. Add `#define alignas _Alignas` because the older libraries don't support it in C++.
+

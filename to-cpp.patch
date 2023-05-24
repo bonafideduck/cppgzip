@@ -44,6 +44,72 @@ index 4f51b61..d1f382f 100644
  check-local: $(FILES_TO_CHECK) $(bin_PROGRAMS) gzip.doc.gz
  	$(AM_V_GEN)$(new_path); { test '$(srcdir)' != . \
  				    || zdiff gzip.doc.gz; }
+diff --git a/bits.cpp b/bits.cpp
+index 572fc7c..6d892e1 100644
+--- a/bits.cpp
++++ b/bits.cpp
+@@ -109,9 +109,9 @@ int (*read_buf) (char *buf, unsigned size);
+ /* ===========================================================================
+  * Initialize the bit string routines.
+  */
+-void bi_init (zipfile)
+-    file_t zipfile; /* output zip file, NO_FILE for in-memory compression */
+-{
++void bi_init (
++    file_t zipfile /* output zip file, NO_FILE for in-memory compression */
++) {
+     zfile  = zipfile;
+     bi_buf = 0;
+     bi_valid = 0;
+@@ -131,10 +131,10 @@ void bi_init (zipfile)
+  * Send a value on a given number of bits.
+  * IN assertion: length <= 16 and value fits in length bits.
+  */
+-void send_bits(value, length)
+-    int value;  /* value to send */
+-    int length; /* number of bits */
+-{
++void send_bits(
++    int value,  /* value to send */
++    int length /* number of bits */
++) {
+ #ifdef DEBUG
+     Tracev((stderr," l %2d v %4x ", length, value));
+     Assert(length > 0 && length <= 15, "invalid length");
+@@ -160,11 +160,11 @@ void send_bits(value, length)
+  * method would use a table)
+  * IN assertion: 1 <= len <= 15
+  */
+-unsigned bi_reverse(code, len)
+-    unsigned code; /* the value to invert */
+-    int len;       /* its bit length */
+-{
+-    register unsigned res = 0;
++unsigned bi_reverse(
++    unsigned code, /* the value to invert */
++    int len        /* its bit length */
++) {
++    unsigned res = 0;
+     do {
+         res |= code & 1;
+         code >>= 1, res <<= 1;
+@@ -193,11 +193,11 @@ void bi_windup()
+  * Copy a stored block to the zip file, storing first the length and its
+  * one's complement if requested.
+  */
+-void copy_block(buf, len, header)
+-    char     *buf;    /* the input data */
+-    unsigned len;     /* its length */
+-    int      header;  /* true if block header must be written */
+-{
++void copy_block(
++    char     *buf,    /* the input data */
++    unsigned len,     /* its length */
++    int      header   /* true if block header must be written */
++) {
+     bi_windup();              /* align on byte boundary */
+ 
+     if (header) {
 diff --git a/configure.ac b/configure.ac
 index 402fc45..4ff2fbf 100644
 --- a/configure.ac
@@ -65,3 +131,800 @@ index 402fc45..4ff2fbf 100644
  AC_PROG_GREP
  AC_CHECK_PROG([LESS], [less], [less])
  AM_CONDITIONAL([LESS], [test "$LESS"])
+diff --git a/gzip.cpp b/gzip.cpp
+index 4300997..585b8c3 100644
+--- a/gzip.cpp
++++ b/gzip.cpp
+@@ -73,13 +73,17 @@ static char const *const license_msg[] = {
+ 
+ #include "dirname.h"
+ #include "dosname.h"
++extern "C" {
+ #include "fcntl--.h"
++}
+ #include "getopt.h"
+ #include "ignore-value.h"
+ #include "stat-time.h"
+ #include "version.h"
+ #include "xalloc.h"
++extern "C" {
+ #include "yesno.h"
++}
+ 
+                 /* configuration */
+ 
+@@ -93,11 +97,15 @@ static char const *const license_msg[] = {
+ #endif
+ #if !NO_DIR
+ # include <dirent.h>
++extern "C" {
+ # include <savedir.h>
++}
+ #endif
+ 
+ #ifndef NO_UTIME
++extern "C" {
+ #  include <utimens.h>
++}
+ #endif
+ 
+ #ifndef MAX_PATH_LEN
+@@ -129,6 +137,12 @@ static char const *const license_msg[] = {
+ 
+                 /* global buffers */
+ 
++#ifdef __cplusplus 
++/* align.h undefines alignas, but C++ supports it */
++#undef alignas
++#define alignas _Alignas
++#endif
++
+ /* With IBM_Z_DFLTCC, DEFLATE COMPRESSION works faster with
+    page-aligned input and output buffers, and requires page-aligned
+    windows; the alignment requirement is 4096.  On other platforms
+@@ -139,6 +153,7 @@ static char const *const license_msg[] = {
+ #else
+ # define BUFFER_ALIGNED /**/
+ #endif
++
+ DECLARE(uch BUFFER_ALIGNED, inbuf,  INBUFSIZ +INBUF_EXTRA);
+ DECLARE(uch BUFFER_ALIGNED, outbuf, OUTBUFSIZ+OUTBUF_EXTRA);
+ DECLARE(ush, d_buf,  DIST_BUFSIZE);
+@@ -483,7 +498,7 @@ int main (int argc, char **argv)
+                     if (optind != env_argc)
+                       {
+                         fprintf (stderr,
+-                                 ("%s: %s: non-option in "OPTIONS_VAR
++                                 ("%s: %s: non-option in " OPTIONS_VAR
+                                   " environment variable\n"),
+                                  program_name, env_argv[optind]);
+                         try_help ();
+@@ -493,7 +508,7 @@ int main (int argc, char **argv)
+                        doesn't warn.  */
+                     if (env_argc != 1 && !quiet)
+                       fprintf (stderr,
+-                               ("%s: warning: "OPTIONS_VAR" environment variable"
++                               ("%s: warning: " OPTIONS_VAR" environment variable"
+                                 " is deprecated; use an alias or script\n"),
+                                program_name);
+ 
+@@ -609,7 +624,7 @@ int main (int argc, char **argv)
+                   fprintf (stderr, "-%c: ", optc - ENV_OPTION);
+                 else
+                   fprintf (stderr, "--%s: ", longopts[longind].name);
+-                fprintf (stderr, ("option not valid in "OPTIONS_VAR
++                fprintf (stderr, ("option not valid in " OPTIONS_VAR
+                                   " environment variable\n"));
+               }
+             try_help ();
+@@ -868,9 +883,9 @@ atdir_set (char const *dir, ptrdiff_t dirlen)
+ /* ========================================================================
+  * Compress or decompress the given file
+  */
+-local void treat_file(iname)
+-    char *iname;
+-{
++local void treat_file(
++    char *iname
++) {
+     /* Accept "-" as synonym for stdin */
+     if (strequ(iname, "-")) {
+         int cflag = to_stdout;
+@@ -1169,9 +1184,9 @@ local int create_outfile()
+  * .??z suffix as indicating a compressed file; some people use .xyz
+  * to denote volume data.
+  */
+-local char *get_suffix(name)
+-    char *name;
+-{
++local char *get_suffix(
++    char *name
++) {
+     int nlen, slen;
+     char suffix[MAX_SUFFIX+3]; /* last chars of name, forced to lower case */
+     static char const *known_suffixes[] =
+@@ -1285,10 +1300,10 @@ open_and_stat (char *name, int flags, struct stat *st)
+  * Return an open file descriptor or -1.
+  */
+ static int
+-open_input_file (iname, sbuf)
+-    char *iname;
+-    struct stat *sbuf;
+-{
++open_input_file (
++    char *iname,
++    struct stat *sbuf
++) {
+     int ilen;  /* strlen(ifname) */
+     int z_suffix_errno = 0;
+     static char const *suffixes[] = {NULL, ".gz", ".z", "-z", ".Z", NULL};
+@@ -1466,10 +1481,10 @@ local int make_ofname()
+    zero byte if NBYTES == (size_t) -1.  If FLAGS say that the header
+    CRC should be computed, update the CRC accordingly.  */
+ static void
+-discard_input_bytes (nbytes, flags)
+-    size_t nbytes;
+-    unsigned int flags;
+-{
++discard_input_bytes (
++    size_t nbytes,
++    unsigned int flags
++) {
+   while (nbytes != 0)
+     {
+       uch c = get_byte ();
+@@ -1493,9 +1508,9 @@ discard_input_bytes (nbytes, flags)
+  * IN assertions: there is at least one remaining compressed member.
+  *   If the member is a zip file, it must be the only one.
+  */
+-local int get_method(in)
+-    int in;        /* input file descriptor */
+-{
++local int get_method(
++    int in        /* input file descriptor */
++) {
+     uch flags;     /* compression flags */
+     uch magic[10]; /* magic header */
+     int imagic0;   /* first magic byte or EOF */
+@@ -1816,9 +1831,9 @@ do_list (int method)
+  *
+  * IN assertion: for compression, the suffix of the given name is z_suffix.
+  */
+-local void shorten_name(name)
+-    char *name;
+-{
++local void shorten_name(
++    char *name
++) {
+     int len;                 /* length of name without z_suffix */
+     char *trunc = NULL;      /* character to be truncated */
+     int plen;                /* current part length */
+@@ -1921,9 +1936,9 @@ do_chown (int fd, char const *name, uid_t uid, gid_t gid)
+  * Copy modes, times, ownership from input file to output file.
+  * IN assertion: to_stdout is false.
+  */
+-local void copy_stat(ifstat)
+-    struct stat *ifstat;
+-{
++local void copy_stat(
++    struct stat *ifstat
++) {
+     mode_t mode = ifstat->st_mode & S_IRWXUGO;
+     int r;
+ 
+@@ -1986,10 +2001,10 @@ local void copy_stat(ifstat)
+ /* ========================================================================
+  * Recurse through the given directory.
+  */
+-local void treat_dir (fd, dir)
+-    int fd;
+-    char *dir;
+-{
++local void treat_dir (
++    int fd,
++    char *dir
++) {
+     DIR      *dirp;
+     char     nbuf[MAX_PATH_LEN];
+     char *entries;
+@@ -2066,9 +2081,9 @@ install_signal_handlers ()
+ /* ========================================================================
+  * Free all dynamically allocated variables and exit with the given code.
+  */
+-local void do_exit(exitcode)
+-    int exitcode;
+-{
++local void do_exit(
++    int exitcode
++) {
+     static int in_exit = 0;
+ 
+     if (in_exit) exit(exitcode);
+diff --git a/gzip.h b/gzip.h
+index b150145..c45613b 100644
+--- a/gzip.h
++++ b/gzip.h
+@@ -312,7 +312,9 @@ extern int xunlink        (char *fname);
+ extern void make_simple_name (char *name);
+ extern char *add_envopt   (int *argcp, char ***argvp, char const *env);
+ extern noreturn void gzip_error    (char const *m);
++extern "C" {
+ extern noreturn void xalloc_die    (void);
++}
+ extern void warning       (char const *m);
+ extern noreturn void read_error    (void);
+ extern noreturn void write_error   (void);
+diff --git a/trees.cpp b/trees.cpp
+index 805a3b4..4783577 100644
+--- a/trees.cpp
++++ b/trees.cpp
+@@ -338,10 +338,10 @@ local void set_file_type  (void);
+  * location of the internal file attribute (ascii/binary) and method
+  * (DEFLATE/STORE).
+  */
+-void ct_init(attr, methodp)
+-    ush  *attr;   /* pointer to internal file attribute */
+-    int  *methodp; /* pointer to compression method */
+-{
++void ct_init(
++    ush  *attr,   /* pointer to internal file attribute */
++    int  *methodp /* pointer to compression method */
++) {
+     int n;        /* iterates over tree elements */
+     int bits;     /* bit counter */
+     int length;   /* length value */
+@@ -457,10 +457,10 @@ local void init_block()
+  * when the heap property is re-established (each father smaller than its
+  * two sons).
+  */
+-local void pqdownheap(tree, k)
+-    ct_data near *tree;  /* the tree to restore */
+-    int k;               /* node to move down */
+-{
++local void pqdownheap(
++    ct_data near *tree,  /* the tree to restore */
++    int k                /* node to move down */
++) {
+     int v = heap[k];
+     int j = k << 1;  /* left son of k */
+     while (j <= heap_len) {
+@@ -489,9 +489,9 @@ local void pqdownheap(tree, k)
+  *     The length opt_len is updated; static_len is also updated if stree is
+  *     not null.
+  */
+-local void gen_bitlen(desc)
+-    tree_desc near *desc; /* the tree descriptor */
+-{
++local void gen_bitlen(
++    tree_desc near *desc  /* the tree descriptor */
++) {
+     ct_data near *tree  = desc->dyn_tree;
+     int near *extra     = desc->extra_bits;
+     int base            = desc->extra_base;
+@@ -574,10 +574,10 @@ local void gen_bitlen(desc)
+  * OUT assertion: the field code is set for all tree elements of non
+  *     zero code length.
+  */
+-local void gen_codes (tree, max_code)
+-    ct_data near *tree;        /* the tree to decorate */
+-    int max_code;              /* largest code with non zero frequency */
+-{
++local void gen_codes (
++    ct_data near *tree,        /* the tree to decorate */
++    int max_code               /* largest code with non zero frequency */
++) {
+     ush next_code[MAX_BITS+1]; /* next code value for each bit length */
+     ush code = 0;              /* running code value */
+     int bits;                  /* bit index */
+@@ -615,9 +615,9 @@ local void gen_codes (tree, max_code)
+  *     and corresponding code. The length opt_len is updated; static_len is
+  *     also updated if stree is not null. The field max_code is set.
+  */
+-local void build_tree(desc)
+-    tree_desc near *desc; /* the tree descriptor */
+-{
++local void build_tree(
++    tree_desc near *desc  /* the tree descriptor */
++) {
+     ct_data near *tree   = desc->dyn_tree;
+     ct_data near *stree  = desc->static_tree;
+     int elems            = desc->elems;
+@@ -646,10 +646,10 @@ local void build_tree(desc)
+      * two codes of non zero frequency.
+      */
+     while (heap_len < 2) {
+-        int new = heap[++heap_len] = (max_code < 2 ? ++max_code : 0);
+-        tree[new].Freq = 1;
+-        depth[new] = 0;
+-        opt_len--; if (stree) static_len -= stree[new].Len;
++        int new_node = heap[++heap_len] = (max_code < 2 ? ++max_code : 0);
++        tree[new_node].Freq = 1;
++        depth[new_node] = 0;
++        opt_len--; if (stree) static_len -= stree[new_node].Len;
+         /* new is 0 or 1 so it does not have extra bits */
+     }
+     desc->max_code = max_code;
+@@ -702,10 +702,10 @@ local void build_tree(desc)
+  * counts. (The contribution of the bit length codes will be added later
+  * during the construction of bl_tree.)
+  */
+-local void scan_tree (tree, max_code)
+-    ct_data near *tree; /* the tree to be scanned */
+-    int max_code;       /* and its largest code of non zero frequency */
+-{
++local void scan_tree (
++    ct_data near *tree, /* the tree to be scanned */
++    int max_code        /* and its largest code of non zero frequency */
++) {
+     int n;                     /* iterates over all tree elements */
+     int prevlen = -1;          /* last emitted length */
+     int curlen;                /* length of current code */
+@@ -746,10 +746,10 @@ local void scan_tree (tree, max_code)
+  * Send a literal or distance tree in compressed form, using the codes in
+  * bl_tree.
+  */
+-local void send_tree (tree, max_code)
+-    ct_data near *tree; /* the tree to be scanned */
+-    int max_code;       /* and its largest code of non zero frequency */
+-{
++local void send_tree (
++    ct_data near *tree, /* the tree to be scanned */
++    int max_code        /* and its largest code of non zero frequency */
++) {
+     int n;                     /* iterates over all tree elements */
+     int prevlen = -1;          /* last emitted length */
+     int curlen;                /* length of current code */
+@@ -829,9 +829,9 @@ local int build_bl_tree()
+  * lengths of the bit length codes, the literal tree and the distance tree.
+  * IN assertion: lcodes >= 257, dcodes >= 1, blcodes >= 4.
+  */
+-local void send_all_trees(lcodes, dcodes, blcodes)
+-    int lcodes, dcodes, blcodes; /* number of codes for each tree */
+-{
++local void send_all_trees(
++    int lcodes, int dcodes, int blcodes /* number of codes for each tree */
++) {
+     int rank;                    /* index in bl_order */
+ 
+     Assert (lcodes >= 257 && dcodes >= 1 && blcodes >= 4, "not enough codes");
+@@ -856,12 +856,12 @@ local void send_all_trees(lcodes, dcodes, blcodes)
+  * trees or store, and output the encoded block to the zip file. This function
+  * returns the total compressed length for the file so far.
+  */
+-off_t flush_block(buf, stored_len, pad, eof)
+-    char *buf;        /* input block, or NULL if too old */
+-    ulg stored_len;   /* length of input block */
+-    int pad;          /* pad output to byte boundary */
+-    int eof;          /* true if this is the last block for a file */
+-{
++off_t flush_block(
++    char *buf,        /* input block, or NULL if too old */
++    ulg stored_len,   /* length of input block */
++    int pad,          /* pad output to byte boundary */
++    int eof           /* true if this is the last block for a file */
++) {
+     ulg opt_lenb, static_lenb; /* opt_len and static_len in bytes */
+     int max_blindex;  /* index of last bit length code of non zero freq */
+ 
+@@ -965,10 +965,10 @@ off_t flush_block(buf, stored_len, pad, eof)
+  * Save the match info and tally the frequency counts. Return true if
+  * the current block must be flushed.
+  */
+-int ct_tally (dist, lc)
+-    int dist;  /* distance of matched string */
+-    int lc;    /* match length-MIN_MATCH or unmatched char (if dist==0) */
+-{
++int ct_tally (
++    int dist,  /* distance of matched string */
++    int lc     /* match length-MIN_MATCH or unmatched char (if dist==0) */
++) {
+     l_buf[last_lit++] = (uch)lc;
+     if (dist == 0) {
+         /* lc is the unmatched char */
+@@ -1018,10 +1018,10 @@ int ct_tally (dist, lc)
+ /* ===========================================================================
+  * Send the block data compressed using the given Huffman trees
+  */
+-local void compress_block(ltree, dtree)
+-    ct_data near *ltree; /* literal tree */
+-    ct_data near *dtree; /* distance tree */
+-{
++local void compress_block(
++    ct_data near *ltree, /* literal tree */
++    ct_data near *dtree  /* distance tree */
++) {
+     unsigned dist;      /* distance of matched string */
+     int lc;             /* match length or unmatched char (if dist == 0) */
+     unsigned lx = 0;    /* running index in l_buf */
+diff --git a/unlzh.cpp b/unlzh.cpp
+index f018922..8f69e5b 100644
+--- a/unlzh.cpp
++++ b/unlzh.cpp
+@@ -99,9 +99,9 @@ local ush       bitbuf;
+ local unsigned  subbitbuf;
+ local int       bitcount;
+ 
+-local void fillbuf(n)  /* Shift bitbuf n bits left, read n bits */
+-    int n;
+-{
++local void fillbuf(
++    int n 
++) {
+     bitbuf <<= n;
+     while (n > bitcount) {
+         bitbuf |= subbitbuf << (n -= bitcount);
+@@ -112,9 +112,9 @@ local void fillbuf(n)  /* Shift bitbuf n bits left, read n bits */
+     bitbuf |= subbitbuf >> (bitcount -= n);
+ }
+ 
+-local unsigned getbits(n)
+-    int n;
+-{
++local unsigned getbits(
++    int n 
++) {
+     unsigned x;
+ 
+     x = bitbuf >> (BITBUFSIZ - n);  fillbuf(n);
+@@ -131,12 +131,12 @@ local void init_getbits()
+         maketbl.c -- make table for decoding
+ ***********************************************************/
+ 
+-local void make_table(nchar, bitlen, tablebits, table)
+-    int nchar;
+-    uch bitlen[];
+-    int tablebits;
+-    ush table[];
+-{
++local void make_table(
++    int nchar,
++    uch bitlen[],
++    int tablebits,
++    ush table[] 
++) {
+     ush count[17], weight[17], start[18], *p;
+     unsigned i, k, len, ch, jutbits, avail, nextcode, mask;
+ 
+@@ -197,11 +197,11 @@ local void make_table(nchar, bitlen, tablebits, table)
+         huf.c -- static Huffman
+ ***********************************************************/
+ 
+-local void read_pt_len(nn, nbit, i_special)
+-    int nn;
+-    int nbit;
+-    int i_special;
+-{
++local void read_pt_len(
++    int nn,
++    int nbit,
++    int i_special 
++) {
+     int i, c, n;
+     unsigned mask;
+ 
+@@ -333,9 +333,9 @@ local void decode_start()
+ 
+ /* Decode the input and return the number of decoded bytes put in buffer
+  */
+-local unsigned decode(count, buffer)
+-    unsigned count;
+-    uch buffer[];
++local unsigned decode(
++    unsigned count,
++    uch buffer[]
+     /* The calling function must keep the number of
+        bytes to be processed.  This function decodes
+        either 'count' bytes or 'DICSIZ' bytes, whichever
+@@ -344,7 +344,7 @@ local unsigned decode(count, buffer)
+        Call decode_start() once for each new file
+        before calling this function.
+      */
+-{
++) {
+     local unsigned i;
+     unsigned r, c;
+ 
+@@ -379,10 +379,10 @@ local unsigned decode(count, buffer)
+ /* ===========================================================================
+  * Unlzh in to out. Return OK or ERROR.
+  */
+-int unlzh(in, out)
+-    int in;
+-    int out;
+-{
++int unlzh(
++    int in,
++    int out 
++) {
+     unsigned n;
+     ifd = in;
+     ofd = out;
+diff --git a/unlzw.cpp b/unlzw.cpp
+index ba824e4..3e4b46c 100644
+--- a/unlzw.cpp
++++ b/unlzw.cpp
+@@ -97,9 +97,9 @@ static int block_mode = BLOCK_MODE;
+  *   The magic header has already been checked and skipped.
+  *   bytes_in and bytes_out have been initialized.
+  */
+-int unlzw(in, out)
+-    int in, out;    /* input and output file descriptors */
+-{
++int unlzw(
++    int in, int out    /* input and output file descriptors */
++) {
+     char_type  *stackp;
+     code_int   code;
+     int        finchar;
+diff --git a/unpack.cpp b/unpack.cpp
+index 26874eb..2501518 100644
+--- a/unpack.cpp
++++ b/unpack.cpp
+@@ -210,12 +210,12 @@ local void build_tree()
+  *   the compressed data, from offsets inptr to insize-1 included.
+  *   The magic header has already been checked. The output buffer is cleared.
+  */
+-int unpack(in, out)
+-    int in, out;            /* input and output file descriptors */
+-{
++int unpack(
++    int in, int out         /* input and output file descriptors */
++) {
+     int len;                /* Bit length of current code */
+     unsigned eob;           /* End Of Block code */
+-    register unsigned peek; /* lookahead bits */
++    unsigned peek; /* lookahead bits */
+     unsigned peek_mask;     /* Mask for peek_bits bits */
+ 
+     ifd = in;
+diff --git a/unzip.cpp b/unzip.cpp
+index 5f90076..3c4409f 100644
+--- a/unzip.cpp
++++ b/unzip.cpp
+@@ -61,9 +61,9 @@ static int ext_header = 0; /* set if extended local header */
+  * Check zip file and advance inptr to the start of the compressed data.
+  * Get ofname from the local header if necessary.
+  */
+-int check_zipfile(in)
+-    int in;   /* input file descriptors */
+-{
++int check_zipfile(
++    int in    /* input file descriptors */
++) {
+     uch *h = inbuf + inptr; /* first local header */
+ 
+     ifd = in;
+@@ -109,9 +109,9 @@ int check_zipfile(in)
+  *   the compressed data, from offsets inptr to insize-1 included.
+  *   The magic header has already been checked. The output buffer is cleared.
+  */
+-int unzip(in, out)
+-    int in, out;   /* input and output file descriptors */
+-{
++int unzip(
++    int in, int out         /* input and output file descriptors */
++) {
+     ulg orig_crc = 0;       /* original crc */
+     ulg orig_len = 0;       /* original uncompressed length */
+     int n;
+@@ -145,7 +145,7 @@ int unzip(in, out)
+ 
+     } else if (pkzip && method == STORED) {
+ 
+-        register ulg n = LG(inbuf + LOCLEN);
++        ulg n = LG(inbuf + LOCLEN);
+ 
+         if (n != LG(inbuf + LOCSIZ) - (decrypt ? RAND_HEAD_LEN : 0)) {
+ 
+diff --git a/util.cpp b/util.cpp
+index 4f904b4..f297294 100644
+--- a/util.cpp
++++ b/util.cpp
+@@ -104,9 +104,9 @@ static ulg crc = 0xffffffffL;
+  * IN assertion: insize bytes have already been read in inbuf and inptr bytes
+  * already processed or copied.
+  */
+-int copy(in, out)
+-    int in, out;   /* input and output file descriptors */
+-{
++int copy(
++    int in, int out   /* input and output file descriptors */
++) {
+     int got;
+ 
+     errno = 0;
+@@ -127,11 +127,11 @@ int copy(in, out)
+  * pointer, then initialize the crc shift register contents instead.
+  * Return the current crc in either case.
+  */
+-ulg updcrc(s, n)
+-    const uch *s;           /* pointer to bytes to pump through */
+-    unsigned n;             /* number of bytes in s[] */
+-{
+-    register ulg c;         /* temporary variable */
++ulg updcrc(
++    const uch *s,           /* pointer to bytes to pump through */
++    unsigned n              /* number of bytes in s[] */
++) {
++    ulg c;         /* temporary variable */
+ 
+     if (s == NULL) {
+         c = 0xffffffffL;
+@@ -174,9 +174,9 @@ void clear_bufs()
+ /* ===========================================================================
+  * Fill the input buffer. This is called only when the buffer is empty.
+  */
+-int fill_inbuf(eof_ok)
+-    int eof_ok;          /* set if EOF acceptable as a result */
+-{
++int fill_inbuf(
++    int eof_ok           /* set if EOF acceptable as a result */
++) {
+     int len;
+ 
+     /* Read as much as possible */
+@@ -205,11 +205,11 @@ int fill_inbuf(eof_ok)
+ /* Like the standard read function, except do not attempt to read more
+    than INT_MAX bytes at a time.  */
+ int
+-read_buffer (fd, buf, cnt)
+-     int fd;
+-     voidp buf;
+-     unsigned int cnt;
+-{
++read_buffer (
++     int fd,
++     voidp buf,
++     unsigned int cnt 
++) {
+   int len;
+   if (INT_MAX < cnt)
+     cnt = INT_MAX;
+@@ -236,11 +236,11 @@ read_buffer (fd, buf, cnt)
+ 
+ /* Likewise for 'write'.  */
+ static int
+-write_buffer (fd, buf, cnt)
+-     int fd;
+-     voidp buf;
+-     unsigned int cnt;
+-{
++write_buffer (
++     int fd,
++     voidp buf,
++     unsigned int cnt 
++) {
+   if (INT_MAX < cnt)
+     cnt = INT_MAX;
+   return write (fd, buf, cnt);
+@@ -275,11 +275,11 @@ void flush_window()
+  * Update the count of output bytes.  If testing, do not do any
+  * output.  Otherwise, write the buffer, checking for errors.
+  */
+-void write_buf(fd, buf, cnt)
+-    int       fd;
+-    voidp     buf;
+-    unsigned  cnt;
+-{
++void write_buf(
++    int       fd,
++    voidp     buf,
++    unsigned  cnt 
++) {
+     unsigned  n;
+ 
+     bytes_out += cnt;
+@@ -298,9 +298,9 @@ void write_buf(fd, buf, cnt)
+ /* ========================================================================
+  * Put string s in lower case, return s.
+  */
+-char *strlwr(s)
+-    char *s;
+-{
++char *strlwr(
++    char *s 
++) {
+     char *t;
+     for (t = s; *t; t++)
+       *t = tolow ((unsigned char) *t);
+@@ -313,9 +313,9 @@ char *strlwr(s)
+  * case sensitive, force the base name to lower case.
+  */
+ char *
+-gzip_base_name (fname)
+-    char *fname;
+-{
++gzip_base_name (
++    char *fname 
++) {
+     fname = last_component (fname);
+     if (casemap('A') == 'a') strlwr(fname);
+     return fname;
+@@ -324,9 +324,9 @@ gzip_base_name (fname)
+ /* ========================================================================
+  * Unlink a file, working around the unlink readonly bug (if present).
+  */
+-int xunlink (filename)
+-     char *filename;
+-{
++int xunlink (
++     char *filename 
++) {
+   int r = unlink (filename);
+ 
+ #ifdef UNLINK_READONLY_BUG
+@@ -409,7 +409,7 @@ char *add_envopt(
+     /* Allocate the new argv array, with an extra element just in case
+      * the original arg list did not end with a NULL.
+      */
+-    nargv = xcalloc (*argcp + 1, sizeof (char *));
++    nargv = (char **) xcalloc (*argcp + 1, sizeof (char *));
+     oargv  = *argvp;
+     *argvp = nargv;
+ 
+@@ -474,11 +474,11 @@ void write_error()
+ /* ========================================================================
+  * Display compression ratio on the given stream on 6 characters.
+  */
+-void display_ratio(num, den, file)
+-    off_t num;
+-    off_t den;
+-    FILE *file;
+-{
++void display_ratio(
++    off_t num,
++    off_t den,
++    FILE *file 
++) {
+     fprintf(file, "%5.1f%%", den == 0 ? 0 : 100.0 * num / den);
+ }
+ 
+@@ -486,11 +486,11 @@ void display_ratio(num, den, file)
+  * Print an off_t.  There's no completely portable way to use printf,
+  * so we do it ourselves.
+  */
+-void fprint_off(file, offset, width)
+-    FILE *file;
+-    off_t offset;
+-    int width;
+-{
++void fprint_off(
++    FILE *file,
++    off_t offset,
++    int width 
++) {
+     char buf[CHAR_BIT * sizeof (off_t)];
+     char *p = buf + sizeof buf;
+ 
+diff --git a/zip.cpp b/zip.cpp
+index c47c175..8c04e9d 100644
+--- a/zip.cpp
++++ b/zip.cpp
+@@ -33,9 +33,9 @@ enum { SLOW = 2, FAST = 4 };
+  * IN assertions: the input and output buffers are cleared.
+  *   The variables time_stamp and save_orig_name are initialized.
+  */
+-int zip(in, out)
+-    int in, out;            /* input and output file descriptors */
+-{
++int zip(
++    int in, int out         /* input and output file descriptors */
++) {
+     uch  flags = 0;         /* general purpose bit flags */
+     ush  attr = 0;          /* ascii/binary flag */
+     ush  deflate_flags = 0; /* pkzip -es, -en or -ex equivalent */
+@@ -121,10 +121,10 @@ int zip(in, out)
+  * translation, and update the crc and input file size.
+  * IN assertion: size >= 2 (for end-of-line translation)
+  */
+-int file_read(buf, size)
+-    char *buf;
+-    unsigned size;
+-{
++int file_read(
++    char *buf,
++    unsigned size 
++) {
+     unsigned len;
+ 
+     Assert(insize == 0, "inbuf not empty");
